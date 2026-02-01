@@ -1,41 +1,77 @@
+# Pretalx Docker Compose for Coolify
+# Deploy this repo directly in Coolify - it handles SSL/Proxy via Traefik
+
 services:
   pretalx:
-    image: pretalx/standalone:latest
-    # image: pretalx/dev
-    # build: .
+    image: pretalx/standalone:stable
     container_name: pretalx
     restart: unless-stopped
     depends_on:
       - redis
       - db
     environment:
-      # Hint: Make sure you serve all requests for the `/static/` and `/media/` paths when debug is False. See [installation](https://docs.pretalx.org/administrator/installation/#step-7-ssl) for more information
+      # Filesystem paths (container-internal)
       PRETALX_FILESYSTEM_MEDIA: /public/media
       PRETALX_FILESYSTEM_STATIC: /public/static
-    ports:
-      - "80:80"
+
+      # Site configuration - set via Coolify Environment Variables
+      PRETALX_SITE_URL: https://${PRETALX_DOMAIN:-localhost}
+      PRETALX_SITE_DEBUG: ${PRETALX_DEBUG:-False}
+
+      # Database - uses internal Docker network
+      PRETALX_DATABASE_BACKEND: postgresql
+      PRETALX_DATABASE_NAME: pretalx
+      PRETALX_DATABASE_USER: pretalx
+      PRETALX_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      PRETALX_DATABASE_HOST: db
+      PRETALX_DATABASE_PORT: 5432
+
+      # Redis
+      PRETALX_REDIS_LOCATION: redis://redis:6379/0
+      PRETALX_REDIS_SESSIONS: "true"
+      PRETALX_CELERY_BACKEND: redis://redis:6379/1
+      PRETALX_CELERY_BROKER: redis://redis:6379/2
+
+      # Mail settings
+      PRETALX_MAIL_FROM: ${MAIL_FROM:-noreply@example.com}
+      PRETALX_MAIL_HOST: ${MAIL_HOST:-localhost}
+      PRETALX_MAIL_PORT: ${MAIL_PORT:-25}
+      PRETALX_MAIL_USER: ${MAIL_USER:-}
+      PRETALX_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      PRETALX_MAIL_TLS: ${MAIL_TLS:-False}
+      PRETALX_MAIL_SSL: ${MAIL_SSL:-False}
+
+      # Gunicorn tuning
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
     volumes:
-      - ./conf/pretalx.cfg:/etc/pretalx/pretalx.cfg:ro
       - pretalx-data:/data
       - pretalx-public:/public
+    # No ports exposed - Coolify's Traefik handles routing
+    # Port 80 is the internal container port Coolify will proxy to
+    expose:
+      - "80"
+    labels:
+      - "coolify.managed=true"
 
   db:
-    image: docker.io/library/postgres:15-alpine
+    image: postgres:16-alpine
     container_name: pretalx-db
     restart: unless-stopped
     volumes:
       - pretalx-database:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: veryunsecureplschange # same password as one that you will put in pretalx.cfg file later on
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: pretalx
       POSTGRES_DB: pretalx
+    # No external ports - only accessible within Docker network
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: pretalx-redis
     restart: unless-stopped
     volumes:
       - pretalx-redis:/data
+    # No external ports - only accessible within Docker network
 
 volumes:
   pretalx-database:
