@@ -3,7 +3,7 @@
 
 services:
   pretalx:
-    image: pretalx/standalone:stable
+    image: pretalx/standalone:latest
     container_name: pretalx
     restart: unless-stopped
     depends_on:
