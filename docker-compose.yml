@@ -4,7 +4,6 @@
 services:
   pretalx:
     image: pretalx/standalone:latest
-    container_name: pretalx
     restart: unless-stopped
     depends_on:
       - redis
@@ -46,19 +45,11 @@ services:
     volumes:
       - pretalx-data:/data
       - pretalx-public:/public
-    # No ports exposed - Coolify's Traefik handles routing
-    # Port 80 is the internal container port Coolify will proxy to
     expose:
       - "80"
-    networks:
-      - default
-      - coolify
-    labels:
-      - "coolify.managed=true"
 
   db:
     image: postgres:16-alpine
-    container_name: pretalx-db
     restart: unless-stopped
     volumes:
       - pretalx-database:/var/lib/postgresql/data
@@ -66,27 +57,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: pretalx
       POSTGRES_DB: pretalx
-    networks:
-      - default
 
   redis:
     image: redis:7-alpine
-    container_name: pretalx-redis
     restart: unless-stopped
     volumes:
       - pretalx-redis:/data
-    networks:
-      - default
 
 volumes:
   pretalx-database:
   pretalx-data:
   pretalx-public:
   pretalx-redis:
-
-networks:
-  default:
-    # Internal network for db/redis communication
-  coolify:
-    external: true
-    # Traefik's network - required for SSL/proxy
