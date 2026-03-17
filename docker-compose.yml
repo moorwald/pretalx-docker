@@ -1,7 +1,22 @@
 # Pretalx Docker Compose for Coolify
 # Deploy this repo directly in Coolify - it handles SSL/Proxy via Traefik
+#
+# Architecture: Traefik -> Nginx (static files) -> Gunicorn (app)
+# Nginx serves /media/ and /static/ from the shared volume,
+# everything else is proxied to the Pretalx Gunicorn backend.
 
 services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - pretalx
+    volumes:
+      - pretalx-public:/public:ro
+      - ./conf/nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "80"
+
   pretalx:
     image: pretalx/standalone:latest
     restart: unless-stopped
