@@ -699,19 +699,17 @@ main form:has(#id_title):has(#id_abstract)::before {
 }
 
 .form-group.row:has(input[required], select[required], textarea[required]) > label.col-form-label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem;
+  display: block;
+  text-align: right;
 }
 
 .form-group.row:has(input[required], select[required], textarea[required]) > label.col-form-label::after {
   content: 'Required';
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
-  margin-left: 0;
+  width: max-content;
+  max-width: max-content;
+  margin-left: 0.5rem;
   padding: 0.18rem 0.45rem;
   border: 1px solid rgba(253, 185, 51, 0.55);
   border-radius: 999px;
@@ -740,6 +738,6 @@ main form:has(#id_title):has(#id_abstract)::before {
 
 @media (max-width: 767px) {
   .form-group.row:has(input[required], select[required], textarea[required]) > label.col-form-label {
-    justify-content: flex-start;
+    text-align: left;
   }
 }
