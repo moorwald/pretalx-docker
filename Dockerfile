@@ -1,3 +1,3 @@
 # Vendor release plus read-only operational probes. No runtime dependency installs.
-FROM pretalx/standalone:v2026.2.1@sha256:aca4ef20b30452d0941f064e84f8a5a997b34b7af95c939e7e12623d0ce94be7
+FROM pretalx/standalone:v2025.2.2@sha256:59f7b0bc6482b596eccbe52f8e2a124e5a31e043cef8fc87cc84a6309dfed099
 COPY maintenance/qa_pretalx.py maintenance/runtime_probe.py /usr/local/lib/mwc-maintenance/
