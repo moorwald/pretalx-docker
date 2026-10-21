@@ -19,31 +19,31 @@ services:
       - "80"
 
   pretalx:
-    image: pretalx/standalone:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       - redis
       - db
     environment:
-      # Filesystem paths (container-internal)
+      # Preserve the actual SQLite store; PostgreSQL was never used by this app.
+      PRETALX_DATA_DIR: /data
+      PRETALX_DB_TYPE: sqlite3
+      PRETALX_DB_NAME: /data/db.sqlite3
       PRETALX_FILESYSTEM_MEDIA: /public/media
       PRETALX_FILESYSTEM_STATIC: /public/static
 
       # Site configuration - set via Coolify Environment Variables
       PRETALX_SITE_URL: https://${PRETALX_DOMAIN:-localhost}
-      PRETALX_SITE_DEBUG: ${PRETALX_DEBUG:-False}
+      PRETALX_DEBUG: ${PRETALX_DEBUG:-False}
+      PRETALX_HTTPS: "True"
+      # Verified chain: Traefik -> nginx -> Pretalx; no public Gunicorn port.
+      PRETALX_TRUSTED_PROXY_COUNT: "2"
 
-      # Database - uses internal Docker network
-      PRETALX_DATABASE_BACKEND: postgresql
-      PRETALX_DATABASE_NAME: pretalx
-      PRETALX_DATABASE_USER: pretalx
-      PRETALX_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
-      PRETALX_DATABASE_HOST: db
-      PRETALX_DATABASE_PORT: 5432
-
-      # Redis
-      PRETALX_REDIS_LOCATION: redis://redis:6379/0
-      PRETALX_REDIS_SESSIONS: "true"
+      # Correct vendor variable name. Keep DB-backed sessions during the upgrade.
+      PRETALX_REDIS: redis://redis:6379/0
+      PRETALX_REDIS_SESSIONS: "false"
       PRETALX_CELERY_BACKEND: redis://redis:6379/1
       PRETALX_CELERY_BROKER: redis://redis:6379/2
 
@@ -64,6 +64,7 @@ services:
     expose:
       - "80"
 
+  # Legacy unused database is retained, not deleted or switched into service.
   db:
     image: postgres:16-alpine
     restart: unless-stopped

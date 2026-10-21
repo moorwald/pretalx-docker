@@ -1,4 +1,6 @@
 volumes/
+__pycache__/
+*.pyc
 
 # Environment (contains secrets)
 .env

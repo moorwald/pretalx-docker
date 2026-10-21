@@ -1,0 +1,6 @@
+.git
+.env*
+volumes
+pretalx
+**/__pycache__
+**/*.pyc

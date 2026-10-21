@@ -1,5 +1,80 @@
 # pretalx-docker
 
+## MautiCon production operations, 21 October 2026
+
+Coolify resource `vwg0cs0oc8wgkcw0o8csko0o`, `cfp.mautic.org`.
+No AGENTS.md is present. Release through Git/Coolify only, never SSH/Docker
+operations on the production host. The remaining community instructions below
+are background, not a permission to run an untested pull/restart.
+
+The canonical runtime is the root `Dockerfile`, extending the vendor
+`pretalx/standalone:v2026.2.1` pinned by digest, plus read-only integrity probes.
+The former source-build Dockerfile was not used by the Compose deployment.
+
+Important discovery: production actually uses `/data/db.sqlite3`. The former
+`PRETALX_DATABASE_*` and `PRETALX_REDIS_LOCATION` variables were ignored by Pretalx.
+Do not switch to the existing, unused PostgreSQL container: that would expose an
+empty instance. SQLite stays in this release; PostgreSQL and its volume are
+retained untouched. A later database migration is a separate task.
+
+The fixed Compose uses explicit SQLite settings and the vendor's `PRETALX_REDIS`
+variable. Sessions stay database-backed to avoid a gratuitous session-backend
+change. The trusted proxy count is two for Traefik -> nginx -> Pretalx; only nginx
+has public routing, no Gunicorn host port is published. Media uploads are served
+as attachments with nosniff and non-executable types. The controlled local MWC CSS
+and font routes remain separate.
+
+### Backup, rehearsal and release
+
+Operational helpers reuse the existing Mautic maintenance primitives, not a
+second secret store or production deployment channel:
+
+```bash
+export PYTHONPATH="$HOME/Development/Projekte/pretix-docker-compose/maintenance"
+python3 maintenance/export_pretalx.py
+python3 maintenance/qa_pretalx.py "$HOME/Backups/mautic-maintenance/<receiver-directory>"
+```
+
+The export makes a native SQLite online backup, checks integrity, bundles data
+and public files, encrypts with authenticated OpenSSL CMS, transfers only
+ciphertext through a random temporary URL and immediately removes that copy.
+Private receiver keys are only in Infisical. Local plaintext stays in mode-0700
+storage outside Git. This is an upgrade snapshot, not recurring disaster recovery.
+
+QA uses disposable copies in an internal Docker network, with no published ports,
+workers, mail or outside calls. It checks public views, authenticated organiser
+views, existing proposals, business/authentication fingerprints, media and the
+application secret, then proves a full file/database rollback. An upstream schema
+migration moves answer ownership from User to SpeakerProfile; comparisons map
+back through `SpeakerProfile.user_id` rather than treating changed profile IDs as
+lost data. Vendor UID 999 is used, including its mode-0700 application directory.
+
+Release gates:
+
+1. Keep `main` untouched while testing. Create a temporary hold branch with the
+   old pinned image, `entrypoint: [sleep, infinity]`, and `maintenance/nginx-hold.conf`.
+   Disable only this app's periodic task, then select/deploy that branch via Coolify.
+2. Confirm public maintenance 503 and no app workers. Take a NEW encrypted final
+   snapshot, including the actual SQLite DB, matching files and application secret.
+3. Deploy a matching target hold branch. No automatic startup migrations or mail
+   workers may run while held. Run controlled migrations, rebuild and deploy checks;
+   compare production fingerprints/media/secret to the final snapshot.
+4. Only after these gates pass, fast-forward `main` to the tested release commit,
+   select/deploy `main`, restore the periodic task and independently verify runtime,
+   health, API, worker and public rendering.
+5. Retain both hold branches only for the immediate recovery period, then remove
+   them after retention/backup policy is agreed. No permanent parallel service.
+
+Recovery: remain in hold, never run old app code against the migrated database.
+Preserve the failed state, then restore the complete matching SQLite database AND
+file snapshot from the protected maintenance directory. Remove target-created
+SQLite WAL/SHM files while writers are stopped. A full file restore must remove
+files created by the failed release as well as restoring originals. Select the
+old pinned hold branch and verify the restored state before reopening old code.
+Consider all changes since the snapshot; do not silently roll them back.
+
+No synthetic production emails, proposal submissions or schedule publications.
+
 This repository contains a docker-compose setup for a
 [pretalx](https://github.com/pretalx/pretalx) installation based on docker.
 
